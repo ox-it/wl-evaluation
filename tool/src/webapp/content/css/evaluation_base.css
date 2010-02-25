@@ -196,6 +196,13 @@ div.scaleDesc{
 /*PART 3 - summary page  layout definitions*/
 .summaryBox{ border: 1px solid #aaa; margin: 0 0 1em 0 }
 .summaryBox .innerPanel{ padding: .5em }
+.summaryCol{
+	width: 99%;
+	height: 100%;
+	overflow: hidden;
+	float: left;
+	margin-top: 1em
+}
 .summaryCol1{
 	width: 49.5%;
 	height: 100%;
@@ -210,7 +217,7 @@ div.scaleDesc{
 	float: right;
 	margin-top: 1em
 }
-.summaryCol1 h4,.summaryCol2 h4{
+.summaryCol h4,.summaryCol1 h4,.summaryCol2 h4{
 	background: #ddd !important;
 	margin-top: 0;
 	padding: .5em;
