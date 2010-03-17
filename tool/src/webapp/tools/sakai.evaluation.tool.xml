@@ -2,8 +2,8 @@
 
 <registration>
   <tool id="sakai.rsf.evaluation"
-        title="Evaluation System"
-        description="For running evaluations/feedback and surveys.">
+        title="Surveys"
+        description="For running surveys and collecting course feedback.">
      <category name="course" />
      <category name="project" />
      <category name="myworkspace" />
