@@ -626,17 +626,21 @@ public class EvalAuthoringServiceImpl implements EvalAuthoringService {
         }
 
         // get the template items count to set display order for new templateItems
+        int itemsCount = getItemCountForTemplate(template.getId());
         if (templateItem.getId() == null) {
             if (TemplateItemUtils.isBlockParent(templateItem) 
                     && templateItem.getDisplayOrder() != null) {
                 // if this a block parent then we allow the display order to be set
             } else {
                 // new item
-                int itemsCount = getItemCountForTemplate(template.getId());
                 templateItem.setDisplayOrder( new Integer(itemsCount + 1) );
             }
         } else {
             // existing item
+        	if (templateItem.getDisplayOrder() == null){
+        		//put items without display ids at the bottom of the template
+        		templateItem.setDisplayOrder( new Integer(itemsCount + 2) );
+        	}
             // TODO - check if the display orders are set to a value that is used already?
         }
 
@@ -757,7 +761,32 @@ public class EvalAuthoringServiceImpl implements EvalAuthoringService {
         ));
         return itemsCount;
     }
+    
+    public int getNonBlockItemCountForTemplate(Long templateId) {
+    	return getItemCountForTemplate(templateId);
+    }
 
+    /**
+     * Used for determining next available displayOrder for in a block
+     * 
+     * @param templateId unique id for a template
+     * @param blockId id for a template block
+     * @return a count of the non-child items in the template
+     */
+    protected int getItemCountForTemplateItem(Long templateId, Long blockId) {
+        // only count items which are not children of a block
+        int itemsCount = (int) dao.countBySearch(EvalTemplateItem.class, new Search(
+                new Restriction[] {
+                        new Restriction("template.id", templateId),
+                        new Restriction("blockId", blockId)
+                }
+        ));
+        return itemsCount;
+    }
+    
+    public int getItemCountForTemplateItemBlock(Long templateId, Long blockId) {
+    	return getItemCountForTemplateItem(templateId, blockId);
+    }
 
     public void deleteTemplateItem(Long templateItemId, String userId) {
         log.debug("templateItemId:" + templateItemId + ", userId:" + userId);
@@ -2098,7 +2127,4 @@ public class EvalAuthoringServiceImpl implements EvalAuthoringService {
 			
         }
 	}
-
-
-
 }

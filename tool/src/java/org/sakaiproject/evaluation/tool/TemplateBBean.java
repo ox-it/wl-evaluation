@@ -93,6 +93,7 @@ public class TemplateBBean {
 
     public Long templateId;
     public Long itemId;
+    public Long[] itemIds;
     public Long scaleId;
 
     public Boolean idealColor;
@@ -180,6 +181,21 @@ public class TemplateBBean {
         return "success";
     }
 
+
+    /**
+     * Make a copy of a template item at the users request,
+     * itemId must be set
+     */
+    public String copyTemplateItems() {
+        log.debug("make a copy of a template item ("+itemIds+") at the users request");
+        String ownerId = commonLogic.getCurrentUserId();
+        Long[] copiedIds = authoringService.copyTemplateItems(itemIds, ownerId, false, templateId, true);
+        messages.addMessage( new TargettedMessage("modifytemplate.copy.user.message", 
+                new Object[] {}, TargettedMessage.SEVERITY_INFO) );
+        log.debug("Copied: " + copiedIds[0].toString());
+        return "success";
+    }
+
     /**
      * hide the item (instead of removing it)
      */
@@ -221,13 +237,12 @@ public class TemplateBBean {
     public String saveBothAction() {
         log.info("save template item and item");
         try {
-            templateItemWBL.saveBoth();
+            return templateItemWBL.saveBoth();  //returns the item's Id
         } catch (BlankRequiredFieldException e) {
             messages.addMessage( new TargettedMessage(e.messageKey, 
                     new Object[] { e.fieldName }, TargettedMessage.SEVERITY_ERROR));
             throw new RuntimeException(e); // should not be needed but it is
         }
-        return "success";
     }
 
 
@@ -350,12 +365,31 @@ public class TemplateBBean {
         log.debug("Save Block items");
 
         Map<String, EvalTemplateItem> delivered = templateItemWBL.getDeliveredBeans();
-
+        
         // Note: Arrays.asList() produces lists that do not support add() or remove(), however set() is supported
         // We may want to change this to ArrayList. (i.e. new ArrayList(Arrays.asList(...)))
         List<String> orderedChildIdList = Arrays.asList(orderedChildIds.split(","));
         List<String> templateItemIdList = Arrays.asList(templateItemIds.split(","));
+        
+        /*
+         * UMD Specific
+         * EVALSYS-850
+         */
+        int adminCt=0;
+   	 	int studentCt=0;
 
+        for (String itemId : templateItemIdList) {
+            EvalTemplateItem templateItem = authoringService.getTemplateItemById(Long.valueOf(itemId));        	
+        	 if (templateItem.getResultsSharing().equals(EvalConstants.SHARING_ADMIN)) {
+        		 adminCt++;
+        	 } else if (templateItem.getResultsSharing().equals(EvalConstants.SHARING_STUDENT)) {
+        		 studentCt++;
+        	 }
+        }
+        log.info("admin cnt: " + adminCt);
+        log.info("student cnt: " + studentCt);
+         
+        
         if (blockId.equals(TemplateItemWBL.NEW_1)) { // create new block
             EvalTemplateItem parent = (EvalTemplateItem) delivered.get(TemplateItemWBL.NEW_1);
             if (parent != null) {
@@ -377,6 +411,18 @@ public class TemplateBBean {
                 parent.getItem().setUsesNA(parent.getUsesNA());
                 parent.getItem().setCategory(parent.getCategory());
                 setIdealColorForBlockParent(parent);
+                
+                /*
+                 * UMD specific
+                 * EVALSYS-850
+                 */
+                if ((adminCt > 0) && (studentCt > 0)) {
+                	parent.setResultsSharing(EvalConstants.SHARING_BOTH);
+                } else if ((adminCt > 0) && (studentCt == 0)) {
+                	parent.setResultsSharing(EvalConstants.SHARING_ADMIN);
+                } else if ((adminCt == 0) && (studentCt > 0)) {
+                	parent.setResultsSharing(EvalConstants.SHARING_STUDENT);
+                }
 
                 try {
                     localTemplateLogic.saveItem(parent.getItem());
@@ -479,8 +525,8 @@ public class TemplateBBean {
                 child.setHierarchyNodeId(parent.getHierarchyNodeId());
                 localTemplateLogic.saveTemplateItem(child);
             }
+            return parent.getId().toString();
         }
-
         return "success";
     }
     

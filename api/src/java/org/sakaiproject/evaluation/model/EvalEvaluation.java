@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.sakaiproject.evaluation.constant.EvalConstants;
 import org.sakaiproject.evaluation.logic.EvalEvaluationService;
+import org.sakaiproject.evaluation.logic.model.EvalReminderStatus;
 import org.sakaiproject.evaluation.utils.EvalUtils;
 
 /**
@@ -125,6 +126,16 @@ public class EvalEvaluation implements java.io.Serializable {
      */
     private String reminderFromEmail;
 
+    /**
+     * This is the status of the current reminder sending,
+     * use the {@link #getCurrentReminderStatus()} method to get the info out of this field
+     * and the {@link #setCurrentReminderStatus(EvalReminderStatus)} to set the field
+     */
+    private String reminderStatus;
+
+    /**
+     * This is the term code for this evaluation (I assume?)
+     */
     private String termId;
 
     /**
@@ -175,8 +186,13 @@ public class EvalEvaluation implements java.io.Serializable {
     private String authControl;
 
     private String evalCategory;
+    
+    /** 
+     * A flag to toggle sending mass email on evaluation active state
+     */
+    private Boolean sendAvailableNotifications;
 
-    /**
+	/**
      * If this is not null then we will load in all templates/templateItems/items with the related
      * linking autoUseTag when the evaluation is created
      */
@@ -257,7 +273,7 @@ public class EvalEvaluation implements java.io.Serializable {
     }
 
     /**
-     * full constructor
+     * full constructor without email flag
      */
     public EvalEvaluation(String type, String owner, String title, String instructions,
             Date startDate, Date dueDate, Date stopDate, Date viewDate, boolean studentViewResults,
@@ -268,6 +284,26 @@ public class EvalEvaluation implements java.io.Serializable {
             Set<EvalResponse> responses, Boolean blankResponsesAllowed,
             Boolean modifyResponsesAllowed, Boolean unregisteredAllowed, Boolean locked,
             String authControl, String evalCategory, String selectionSettings) {
+    	
+    	this(type, owner, title, instructions, startDate, dueDate, stopDate, viewDate, studentViewResults, studentsDate, instructorViewResults, instructorsDate, state,
+                resultsSharing, instructorOpt, reminderDays, reminderFromEmail, termId, availableEmailTemplate, reminderEmailTemplate, template,
+                responses, blankResponsesAllowed, modifyResponsesAllowed, unregisteredAllowed, locked,
+                authControl, evalCategory, selectionSettings, Boolean.TRUE);
+    }
+    
+    /**
+     * full constructor
+     */
+    public EvalEvaluation(String type, String owner, String title, String instructions,
+            Date startDate, Date dueDate, Date stopDate, Date viewDate, boolean studentViewResults,
+            Date studentsDate, boolean instructorViewResults, Date instructorsDate, String state,
+            String resultsSharing, String instructorOpt, Integer reminderDays,
+            String reminderFromEmail, String termId, EvalEmailTemplate availableEmailTemplate,
+            EvalEmailTemplate reminderEmailTemplate, EvalTemplate template,
+            Set<EvalResponse> responses, Boolean blankResponsesAllowed,
+            Boolean modifyResponsesAllowed, Boolean unregisteredAllowed, Boolean locked,
+            String authControl, String evalCategory, String selectionSettings, Boolean emailOpenNotification) {
+    	
         this.lastModified = new Date();
         this.type = type;
         this.owner = owner;
@@ -298,6 +334,7 @@ public class EvalEvaluation implements java.io.Serializable {
         this.authControl = authControl;
         this.evalCategory = evalCategory;
         this.selectionSettings = selectionSettings;
+    	this.sendAvailableNotifications = emailOpenNotification;
     }
 
     @Override
@@ -416,6 +453,35 @@ public class EvalEvaluation implements java.io.Serializable {
         EvalAssignGroup.handleSelectionOption(selectionType, selectionOption, selections);
         setSelectionSettings( EvalAssignGroup.encodeSelectionSettings(selections) );
     }
+
+    // REMINDER STATUS METHODS
+
+    /**
+     * This will return the current reminder status based on the coded value in the evaluation
+     */
+    public EvalReminderStatus getCurrentReminderStatus() {
+        EvalReminderStatus rs;
+        try {
+            rs = new EvalReminderStatus(this.reminderStatus);
+        } catch (IllegalArgumentException e) {
+            rs = null;
+        }
+        return rs;
+    }
+
+    /**
+     * Set this to null in order to clear the current reminder status
+     * and to indicate that the reminders processing is complete
+     * @param status
+     */
+    public void setCurrentReminderStatus(EvalReminderStatus status) {
+        if (status == null) {
+            this.reminderStatus = null;
+        } else {
+            this.reminderStatus = status.toString();
+        }
+    }
+
 
     // GETTERS and SETTERS
 
@@ -719,6 +785,22 @@ public class EvalEvaluation implements java.io.Serializable {
 
     public void setEvalAssignGroups(List<EvalAssignGroup> evalAssignGroups) {
         this.evalAssignGroups = evalAssignGroups;
+    }
+    
+    public Boolean getSendAvailableNotifications() {
+        return sendAvailableNotifications;
+    }
+    
+    public void setSendAvailableNotifications(Boolean sendAvailableNotifications) {
+        this.sendAvailableNotifications = sendAvailableNotifications;
+    }
+
+    public String getReminderStatus() {
+        return reminderStatus;
+    }
+
+    public void setReminderStatus(String reminderStatus) {
+        this.reminderStatus = reminderStatus;
     }
 
 }

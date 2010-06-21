@@ -15,7 +15,6 @@
 package org.sakaiproject.evaluation.logic;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +27,7 @@ import org.sakaiproject.evaluation.constant.EvalConstants;
 import org.sakaiproject.evaluation.dao.EvaluationDao;
 import org.sakaiproject.evaluation.logic.externals.EvalSecurityChecksImpl;
 import org.sakaiproject.evaluation.logic.model.EvalGroup;
+import org.sakaiproject.evaluation.logic.model.EvalReminderStatus;
 import org.sakaiproject.evaluation.model.EvalAssignGroup;
 import org.sakaiproject.evaluation.model.EvalAssignHierarchy;
 import org.sakaiproject.evaluation.model.EvalAssignUser;
@@ -35,9 +35,8 @@ import org.sakaiproject.evaluation.model.EvalEmailTemplate;
 import org.sakaiproject.evaluation.model.EvalEvaluation;
 import org.sakaiproject.evaluation.model.EvalResponse;
 import org.sakaiproject.evaluation.model.EvalTemplate;
+import org.sakaiproject.evaluation.utils.ArrayUtils;
 import org.sakaiproject.evaluation.utils.EvalUtils;
-import org.sakaiproject.genericdao.api.search.Order;
-import org.sakaiproject.genericdao.api.search.Restriction;
 import org.sakaiproject.genericdao.api.search.Order;
 import org.sakaiproject.genericdao.api.search.Restriction;
 import org.sakaiproject.genericdao.api.search.Search;
@@ -137,7 +136,20 @@ public class EvalEvaluationServiceImpl implements EvalEvaluationService {
         }
         return evals;
     }
-
+    
+    /* (non-Javadoc)
+     * @see org.sakaiproject.evaluation.logic.EvalEvaluationService#getEvaluationsByTermId(java.lang.String)
+     */
+    public List<EvalEvaluation> getEvaluationsByTermId(String termId) {
+    	log.debug("termId: " + termId);
+        Search search = makeSearchForEvalsByTermId(termId);
+        List<EvalEvaluation> evals = dao.findBySearch(EvalEvaluation.class, search);
+        for (EvalEvaluation evaluation : evals) {
+            fixupEvaluation(evaluation);
+        }
+        return evals;
+    }
+    
     /**
      * @param templateId unique id of a template (must be set or exception occurs)
      * @return the search which will find evals based on a template id
@@ -156,6 +168,21 @@ public class EvalEvaluationServiceImpl implements EvalEvaluationService {
         );
         return search;
     }
+    
+    /**
+     * @param termId the term id of an {@link EvalEvaluation}
+     * @return the search object that will select {@link EvalEvaluation} objects based on term id
+     */
+    private Search makeSearchForEvalsByTermId(String termId) {
+        Search search = new Search(
+                new Restriction[] {
+                        new Restriction("termId", termId),
+                        new Restriction("state", EvalConstants.EVALUATION_STATE_PARTIAL, Restriction.NOT_EQUALS),
+                        new Restriction("state", EvalConstants.EVALUATION_STATE_DELETED, Restriction.NOT_EQUALS)
+                }
+        );
+        return search;
+    }
 
     /* (non-Javadoc)
      * @see org.sakaiproject.evaluation.logic.EvalEvaluationService#updateEvaluationState(java.lang.Long)
@@ -168,6 +195,16 @@ public class EvalEvaluationServiceImpl implements EvalEvaluationService {
         return returnAndFixEvalState(eval, true);
     }
 
+    /* (non-Javadoc)
+     * @see org.sakaiproject.evaluation.logic.EvalEvaluationService#updateEvaluationReminderStatus(java.lang.Long, org.sakaiproject.evaluation.logic.model.EvalReminderStatus)
+     */
+    public void updateEvaluationReminderStatus(Long evaluationId, EvalReminderStatus reminderStatus) {
+        log.debug("evalId: " + evaluationId);
+        EvalEvaluation eval = getEvaluationOrFail(evaluationId);
+        eval.setCurrentReminderStatus(reminderStatus);
+        dao.update(eval);
+        dao.forceCommit();
+    }
 
     /* (non-Javadoc)
      * @see org.sakaiproject.evaluation.logic.EvalEvaluationService#returnAndFixEvalState(org.sakaiproject.evaluation.model.EvalEvaluation, boolean)
@@ -405,13 +442,19 @@ public class EvalEvaluationServiceImpl implements EvalEvaluationService {
                 // check that the evalGroupId is valid for this evaluation
                 search.addRestriction( new Restriction("evalGroupId", evalGroupId) );
             }
-            // do the count based on the search
-            long count = dao.countBySearch(EvalAssignGroup.class, search);
-            if (count <= 0l) {
+            // do the search
+            List<EvalAssignGroup> groups = dao.findBySearch(EvalAssignGroup.class, search);
+            if (groups.size() <= 0) {
                 // no valid groups
                 valid = false;
+            } else if (groups.size() == 1){
+                valid = commonLogic.isEvalGroupPublished(groups.get(0).getEvalGroupId());
             } else {
-                valid = true;
+                int validGroups = 0;
+                for ( EvalAssignGroup evalAssignGroup : groups){
+                	validGroups = commonLogic.isEvalGroupPublished(groups.get(0).getEvalGroupId()) ? validGroups + 1 : validGroups;
+                }
+                valid = validGroups > 0;
             }
         }
         return valid;
@@ -627,44 +670,46 @@ public class EvalEvaluationServiceImpl implements EvalEvaluationService {
 
     public Map<Long, List<EvalAssignGroup>> getAssignGroupsForEvals(Long[] evaluationIds,
             boolean includeUnApproved, Boolean includeHierarchyGroups) {
-        log.debug("evalIds: " + evaluationIds + ", includeUnApproved=" + includeUnApproved);
+        log.debug("evalIds: " + ArrayUtils.arrayToString(evaluationIds) + ", includeUnApproved=" + includeUnApproved);
         Map<Long, List<EvalAssignGroup>> evals = new TreeMap<Long, List<EvalAssignGroup>>();
+        
+        if ( evaluationIds != null && evaluationIds.length > 0){
+	        // create the inner lists
+	        for (int i=0; i<evaluationIds.length; i++) {
+	            List<EvalAssignGroup> innerList = new ArrayList<EvalAssignGroup>();
+	            evals.put(evaluationIds[i], innerList);
+	        }
+	
+	        Search search = new Search("evaluation.id", evaluationIds);
+	
+	        if (! includeUnApproved) {
+	            // only include those that are approved
+	            search.addRestriction( new Restriction("instructorApproval", Boolean.TRUE) );
+	        }
+	
+	        // include all groups unless this is not null and then we limit
+	        if (includeHierarchyGroups != null) {
+	            if (includeHierarchyGroups) {
+	                // only include those which were added via nodes
+	                search.addRestriction( new Restriction("nodeId", "", Restriction.NOT_NULL) );
+	            } else {
+	                // only include those which were added directly (i.e. nodeId = null)
+	                search.addRestriction( new Restriction("nodeId", "", Restriction.NULL) );
+	            }
+	        }
+	
+	        // get all the groups for the given eval ids in one storage call
+	        search.addOrder( new Order("evalGroupId") );
+	        List<EvalAssignGroup> l = dao.findBySearch(EvalAssignGroup.class, search );
 
-        // create the inner lists
-        for (int i=0; i<evaluationIds.length; i++) {
-            List<EvalAssignGroup> innerList = new ArrayList<EvalAssignGroup>();
-            evals.put(evaluationIds[i], innerList);
-        }
-
-        Search search = new Search("evaluation.id", evaluationIds);
-
-        if (! includeUnApproved) {
-            // only include those that are approved
-            search.addRestriction( new Restriction("instructorApproval", Boolean.TRUE) );
-        }
-
-        // include all groups unless this is not null and then we limit
-        if (includeHierarchyGroups != null) {
-            if (includeHierarchyGroups) {
-                // only include those which were added via nodes
-                search.addRestriction( new Restriction("nodeId", "", Restriction.NOT_NULL) );
-            } else {
-                // only include those which were added directly (i.e. nodeId = null)
-                search.addRestriction( new Restriction("nodeId", "", Restriction.NULL) );
-            }
-        }
-
-        // get all the groups for the given eval ids in one storage call
-        search.addOrder( new Order("id") );
-        List<EvalAssignGroup> l = dao.findBySearch(EvalAssignGroup.class, search );
-
-        for (int i=0; i<l.size(); i++) {
-            EvalAssignGroup eac = l.get(i);
-
-            // put stuff in inner list
-            Long evalId = eac.getEvaluation().getId();
-            List<EvalAssignGroup> innerList = evals.get(evalId);
-            innerList.add( eac );
+	        for (int i=0; i<l.size(); i++) {
+	            EvalAssignGroup eac = l.get(i);
+	
+	            // put stuff in inner list
+	            Long evalId = eac.getEvaluation().getId();
+	            List<EvalAssignGroup> innerList = evals.get(evalId);
+	            innerList.add( eac );
+	        }
         }
         return evals;
     }

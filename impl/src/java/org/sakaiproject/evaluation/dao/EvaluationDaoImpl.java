@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.criterion.DetachedCriteria;
 import org.hibernate.criterion.Expression;
@@ -53,6 +54,7 @@ import org.sakaiproject.evaluation.utils.EvalUtils;
 import org.sakaiproject.genericdao.api.search.Restriction;
 import org.sakaiproject.genericdao.api.search.Search;
 import org.sakaiproject.genericdao.hibernate.HibernateGeneralGenericDao;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 /**
  * This is the more specific Evaluation data access interface,
@@ -78,6 +80,19 @@ public class EvaluationDaoImpl extends HibernateGeneralGenericDao implements Eva
         log.debug("init");
     }
 
+    /* (non-Javadoc)
+     * @see org.sakaiproject.evaluation.dao.EvaluationDao#forceCommit()
+     */
+    public void forceCommit() {
+        getHibernateTemplate().flush(); // this should commit the data immediately
+    }
+
+    /* (non-Javadoc)
+     * @see org.sakaiproject.evaluation.dao.EvaluationDao#forceRollback()
+     */
+    public void forceRollback() {
+        getHibernateTemplate().clear();
+    }
 
     public void fixupDatabase() {
         // fix up some of the null fields
