@@ -89,6 +89,7 @@ var evalTemplateFacebox = (function() {
             $('#facebox .body').css('width', 660);
             $('#facebox .header').eq(0).show();
             $.facebox.settings.elementToUpdate = null;
+            evalTemplateData.setCurrentRow(undefined);
             return false;
         };
 
@@ -114,7 +115,6 @@ var evalTemplateFacebox = (function() {
         };
 
     };
-
 
     return {
         init: function() {
@@ -142,11 +142,10 @@ var evalTemplateFacebox = (function() {
                     revealFunction = evalTemplateLoaderEvents.modify_template;
                 } else if (pageType === evalTemplateUtils.pages.choose_existing_page) {
                     //Redirect
-                    //if ( confirm("Are you sure?")) {
-                        window.location = url;
-                   // }else{
-                        return false;
-                    //}
+                    window.location = url;
+                    return false;
+                } else if (pageType === evalTemplateUtils.pages.choose_expert_page){
+                    revealFunction = evalTemplateLoaderEvents.choose_expert_category;
                 }
                 $(document).bind('reveal.facebox', function() {
                     if (typeof revealFunction !== "undefined") {
@@ -193,7 +192,9 @@ var evalTemplateFacebox = (function() {
                     } else if (pageType === evalTemplateUtils.pages.modify_template_page) {
                         revealFunction = evalTemplateLoaderEvents.modify_template;
                     }else if (pageType === evalTemplateUtils.pages.modify_block_page) {
-                            revealFunction = evalTemplateLoaderEvents.modify_block;
+                        revealFunction = evalTemplateLoaderEvents.modify_block;
+                    } else if (pageType === evalTemplateUtils.pages.preview_item_page){
+                        revealFunction = evalTemplateLoaderEvents.preview_item;
                     }
                     $(document).bind('reveal.facebox', function() {
                         if (typeof revealFunction !== "undefined") {
@@ -202,9 +203,11 @@ var evalTemplateFacebox = (function() {
                     });
                 }
                 if ($(this).attr("rel") === "faceboxGrid" && pageType !== evalTemplateUtils.pages.modify_template_page) {
+                    var itemRowBlock = $(this).parents('.itemRow');
+                    evalTemplateData.setCurrentRow(itemRowBlock);
                     evalTemplateFacebox.fbResetClasses();
                     $(this).parent().parent().parent().parent().attr("class", "editing");
-                    $.facebox.settings.elementToUpdate = $(this).parent().parent().parent();
+                    $.facebox.settings.elementToUpdate = itemRowBlock;
                 }
                 $.facebox({ajax: this.href});
                 return false;
@@ -219,14 +222,16 @@ var evalTemplateFacebox = (function() {
                 evalTemplateUtils.frameScrollHeight = e.pageY;
                 //Unbind current reveal event
                 $(document).unbind('reveal.facebox');
-                var params = {
-                    templateItemId: $(this).parents('.itemRowBlock').find('input[name*=hidden-item-id]').val(),
-                    templateId: $('input[name*=templateId]').val(),
+                var itemRowBlock = $(this).parents('.itemRowBlock'),
+                    params = {
+                    templateItemId: itemRowBlock.find('input[name*=hidden-item-id]').val(),
+                    templateId: $('input[name=templateId]').val(),
                     itemClassification: "Block",
                     groupItemId: -1
                 },
                         url = 'modify_item?' + $.param(params);
                 $.facebox.settings.elementToUpdate = "block";
+                evalTemplateData.setCurrentRow(itemRowBlock);               
 
                 $(document).bind('reveal.facebox', function() {
                     evalTemplateLoaderEvents.modify_item();

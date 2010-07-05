@@ -101,32 +101,30 @@ public class AdministrateProducer implements ViewComponentProducer {
                 new SimpleViewParameters(SummaryProducer.VIEW_ID));
 
         // only show "My Evaluations", "My Templates", "My Items", "My Scales" and "My Email Templates" links if enabled
-        boolean showMyToplinks = ((Boolean)evalSettings.get(EvalSettings.ENABLE_MY_TOPLINKS)).booleanValue();
-        if(showMyToplinks) {
-        	if (beginEvaluation) {
-        		UIInternalLink.make(tofill, "control-evaluations-link",
-        				UIMessage.make("controlevaluations.page.title"), 
-        				new SimpleViewParameters(ControlEvaluationsProducer.VIEW_ID));
-        	}
-        	
-        	UIInternalLink.make(tofill, "control-templates-link",
-        			UIMessage.make("controltemplates.page.title"), 
-        			new SimpleViewParameters(ControlTemplatesProducer.VIEW_ID));
+        //boolean showMyToplinks = ((Boolean)evalSettings.get(EvalSettings.ENABLE_MY_TOPLINKS)).booleanValue(); // ALWAYS SHOW FOR ADMIN
+    	if (beginEvaluation) {
+    		UIInternalLink.make(tofill, "control-evaluations-link",
+    				UIMessage.make("controlevaluations.page.title"), 
+    				new SimpleViewParameters(ControlEvaluationsProducer.VIEW_ID));
+    	}
+    	
+    	UIInternalLink.make(tofill, "control-templates-link",
+    			UIMessage.make("controltemplates.page.title"), 
+    			new SimpleViewParameters(ControlTemplatesProducer.VIEW_ID));
 
-        	if (!((Boolean)evalSettings.get(EvalSettings.DISABLE_ITEM_BANK))) {
-        		UIInternalLink.make(tofill, "control-items-link",
-        				UIMessage.make("controlitems.page.title"),
-        				new SimpleViewParameters(ControlItemsProducer.VIEW_ID));
-        	}
+    	if (!((Boolean)evalSettings.get(EvalSettings.DISABLE_ITEM_BANK))) {
+    		UIInternalLink.make(tofill, "control-items-link",
+    				UIMessage.make("controlitems.page.title"),
+    				new SimpleViewParameters(ControlItemsProducer.VIEW_ID));
+    	}
 
-        	UIInternalLink.make(tofill, "control-scales-link",
-        			UIMessage.make("controlscales.page.title"),
-        			new SimpleViewParameters(ControlScalesProducer.VIEW_ID));
+    	UIInternalLink.make(tofill, "control-scales-link",
+    			UIMessage.make("controlscales.page.title"),
+    			new SimpleViewParameters(ControlScalesProducer.VIEW_ID));
 
-        	UIInternalLink.make(tofill, "control-emailtemplates-link",
-        			UIMessage.make("controlemailtemplates.page.title"),
-        			new SimpleViewParameters(ControlEmailTemplatesProducer.VIEW_ID));
-        }
+    	UIInternalLink.make(tofill, "control-emailtemplates-link",
+    			UIMessage.make("controlemailtemplates.page.title"),
+    			new SimpleViewParameters(ControlEmailTemplatesProducer.VIEW_ID));
 
         // BREADCRUMBS
         UIInternalLink.make(tofill, "control-email-toplink",
@@ -336,6 +334,7 @@ public class AdministrateProducer implements ViewComponentProducer {
         makeBoolean(form, "general-enable-evaluatee-box", EvalSettings.ENABLE_EVALUATEE_BOX);
         makeBoolean(form, "general-show-my-toplinks", EvalSettings.ENABLE_MY_TOPLINKS);
         makeBoolean(form, "general-use-eval-category", EvalSettings.ENABLE_EVAL_CATEGORIES);
+        makeBoolean(form, "general-use-eval-term-id", EvalSettings.ENABLE_EVAL_TERM_IDS);
         makeBoolean(form, "general-enable-response-removal", EvalSettings.ENABLE_EVAL_RESPONSE_REMOVAL);
 
         makeBoolean(form, "general-default-question-category",  EvalSettings.ITEM_USE_COURSE_CATEGORY_ONLY);
@@ -374,6 +373,7 @@ public class AdministrateProducer implements ViewComponentProducer {
         makeBoolean(form, "general-disable-question-blocks", EvalSettings.DISABLE_QUESTION_BLOCKS);
         makeBoolean(form, "general-enable-ta-category", EvalSettings.ENABLE_ASSISTANT_CATEGORY);
         makeBoolean(form, "general-enable-selections", EvalSettings.ENABLE_INSTRUCTOR_ASSISTANT_SELECTION);
+        makeBoolean(form, "general-filter-evalgroups", EvalSettings.ENABLE_FILTER_ASSIGNABLE_GROUPS);
         // Save settings button
         // NB no action now required
         UICommand.make(form, "saveSettings", UIMessage.make("administrate.save.settings.button"), null);	

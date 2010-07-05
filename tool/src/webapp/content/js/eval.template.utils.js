@@ -10,10 +10,11 @@ var evalTemplateUtils = (function() {
             messgeBundlePath = "/direct/eval-resources/message-bundle.json",
 
     // Dont configure these vars
+            templateId = 0,
             pagesLoadedByFBwithJs = [],
             messageBundle = {},
             closedGroups = [];     // keep track of groups a user closes: EVALSYS-825
-   
+
     function resizeFrame(updown, height) {
         try {
             var thisHeight = typeof height === "undefined" ? 280 : Number(height) + 40,
@@ -120,23 +121,26 @@ var evalTemplateUtils = (function() {
             // Message Locale bundle loader
             loadMessageBundle();
 
+            templateId = $('input[name=templateId]:hidden').val();
         },
         pages: {
                 modify_item_page: "modify_item",
                 modify_template_page: "modify_template",
                 modify_block_page: "modify_block",
                 choose_existing_page: "choose_existing_items",
+                choose_expert_page: "choose_expert_category",
                 eb_save_order: "/direct/eval-templateitem/template-items-reorder",
-                eb_block_edit: "/direct/eval-templateitem/modify-block-items"
+                eb_block_edit: "/direct/eval-templateitem/modify-block-items",
+                preview_item_page: "preview_item"
             },
         getPageType: function(url){
             evalTemplateUtils.debug.group("Getting the page type/name");
             var pageType = undefined,
                     i = 0,
                     regExp = null;
-            pagesLoadedByFBwithJs = [ evalTemplateUtils.pages.modify_item_page,
+            pagesLoadedByFBwithJs = [ evalTemplateUtils.pages.modify_item_page, evalTemplateUtils.pages.choose_expert_page,
                 evalTemplateUtils.pages.modify_template_page, evalTemplateUtils.pages.modify_block_page,
-                evalTemplateUtils.pages.choose_existing_page ];
+                evalTemplateUtils.pages.choose_existing_page, evalTemplateUtils.pages.preview_item_page];
             evalTemplateUtils.debug.debug("Pages supported are %s", pagesLoadedByFBwithJs.toString());
             for ( i in pagesLoadedByFBwithJs){
                 if ( typeof pageType == "undefined" ){
@@ -180,6 +184,15 @@ var evalTemplateUtils = (function() {
                 evalTemplateUtils.debug.warn("closedGroups %o", closedGroups);
             },
             get : closedGroups            
+        },
+
+        // DOM values retrieval functions
+        getTemplateId:  function(){return templateId;},
+        getTemplateItemId: function(that){
+            return that.parents('.itemRow').find('input[name=template-item-id]:hidden').val();
+        },
+        getItemClassification: function(that){
+            return that.parents('.itemRow').find('input[name=item-classification]:hidden').val();
         }
 
         };

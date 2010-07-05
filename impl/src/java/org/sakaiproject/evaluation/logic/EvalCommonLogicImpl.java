@@ -46,6 +46,10 @@ import org.sakaiproject.evaluation.utils.EvalUtils;
 /**
  * This is the implementation for the base service
  * This is a BOTTOM level service and should depend on no other eval services (only those in Sakai)
+ * 
+ * This service merges the multiple data sources for the eval system (sakai, providers, internal DB, etc.) into 
+ * common object types so there is only one type to deal with and only one method to call when writing UI
+ * or other services code
  *
  * @author Aaron Zeckoski (aaronz@vt.edu)
  */
@@ -240,20 +244,22 @@ public class EvalCommonLogicImpl implements EvalCommonLogic {
         /* now put the users into the list in the original order of the array 
          * with INVALID EvalUser objects in place of not-found users
          */
-        for (int i = 0; i < userIds.length; i++) {
-            String userId = userIds[i];
-            EvalUser user = null;
-            if (adhocUsers.containsKey(userId)) {
-                EvalAdhocUser adhocUser = adhocUsers.get(userId);
-                user = new EvalUser(adhocUser.getUserId(), EvalConstants.USER_TYPE_INTERNAL,
-                        adhocUser.getEmail(), adhocUser.getUsername(), 
-                        adhocUser.getDisplayName() == null ? adhocUser.getEmail() : adhocUser.getDisplayName());
-            } else if (externalUsers.containsKey(userId)) {
-                user = externalUsers.get(userId);
-            } else {
-                user = makeInvalidUser(userId, null);
+        if (! foundAll) {
+            for (int i = 0; i < userIds.length; i++) {
+                String userId = userIds[i];
+                EvalUser user = null;
+                if (adhocUsers.containsKey(userId)) {
+                    EvalAdhocUser adhocUser = adhocUsers.get(userId);
+                    user = new EvalUser(adhocUser.getUserId(), EvalConstants.USER_TYPE_INTERNAL,
+                            adhocUser.getEmail(), adhocUser.getUsername(), 
+                            adhocUser.getDisplayName() == null ? adhocUser.getEmail() : adhocUser.getDisplayName());
+                } else if (externalUsers.containsKey(userId)) {
+                    user = externalUsers.get(userId);
+                } else {
+                    user = makeInvalidUser(userId, null);
+                }
+                users.add(user);
             }
-            users.add(user);
         }
         //    original not very efficient version -AZ
         //    for (int i = 0; i < userIds.length; i++) {
@@ -496,6 +502,38 @@ public class EvalCommonLogicImpl implements EvalCommonLogic {
         return false;
     }
 
+
+    // CURRENTLY BROKEN METHODS
+
+    // FIXME: this is not implemented correctly, needs to be fixed so it works with adhoc and provided groups -AZ
+    public String getContentCollectionId(String siteId) {
+        // TODO Auto-generated method stub
+        return externalLogic.getContentCollectionId(siteId);
+    }
+
+
+    // FIXME: this is not implemented correctly, needs to be fixed so it works with adhoc and provided groups -AZ
+    public List<EvalGroup> getFilteredEvalGroupsForUser(String userId,
+            String permission, String currentSiteId) {
+        List<EvalGroup> l = new ArrayList<EvalGroup>();
+
+        // get the groups from external
+        l.addAll( externalLogic.getFilteredEvalGroupsForUser(userId, permission, currentSiteId) );
+
+        if (l.isEmpty()) log.info("Empty list of groups for user:" + userId + ", permission: " + permission);
+        return l;
+    }
+
+    // FIXME: this is not implemented correctly, needs to be fixed so it works with adhoc and provided groups, forcing this to true for now so it does not break things -AZ
+    public boolean isEvalGroupPublished(String evalGroupId) {
+        return true;
+        //return externalLogic.isEvalGroupPublished(evalGroupId);
+    }
+
+
+
+    // EMAILS 
+
     public String[] sendEmailsToUsers(String from, String[] toUserIds, String subject, String message, boolean deferExceptions, String deliveryOption) {
         // handle the list of TO addresses
         List<EvalUser> l = getEvalUsersByIds(toUserIds);
@@ -704,11 +742,6 @@ public class EvalCommonLogicImpl implements EvalCommonLogic {
             md5 = md5.substring(0, maxLength);
         }
         return md5;
-    }
-
-    public String getContentCollectionId(String siteId) {
-        // TODO Auto-generated method stub
-        return externalLogic.getContentCollectionId(siteId);
     }
 
 }

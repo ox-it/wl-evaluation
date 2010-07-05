@@ -220,7 +220,7 @@ $(document).ready(function() {
         //copy options to this class
         variables.options = options;
         var temp = $('input#selectedPeopleInResponse').val();
-        variables.savedIds = temp === null ? '' : temp.replace('[', '').replace(']', '').split(', ');
+        variables.savedIds = typeof temp === "undefined" ? '' : temp.replace('[', '').replace(']', '').split(', ');
         return that.each(function() {
             if ($(this).find('select').length > 0) {
                 variables.typeOfSelector.one = true;
@@ -303,7 +303,7 @@ $(document).ready(function() {
                 } else
                 {
                     var temp = 'div[name=' + variables.get.shownQuestions()[0] + '].' + variables.get.typeOfBranch() + 'Branch';
-                    render = confirmSelection($(temp).find('legend').attr('title'));
+                    render = confirmSelection($(temp).find('.legend').attr('title'));
                 }
                 if (render) {
                     variables.questionsToHide = variables.get.shownQuestions();
@@ -389,27 +389,25 @@ $(document).ready(function() {
         }
     }
 
-    function frameGrow(height, updown)
-    {
-        var h = height == "" ? 250 : parseInt(height, 10);
-        var frame = parent.document.getElementById(window.name);
-        try {
-            if (frame)
-            {
-                var clientH;
-                if (updown == 'shrink')
-                {
-                    clientH = document.body.clientHeight - h;
+    function frameGrow(height, updown){
+        var h = height == "" ? 250 : parseInt(height, 10),
+            windowName = window.name,
+            frame = null;
+        if (windowName !== null && windowName.length > 0){
+            frame = parent.document.getElementById(windowName);
+            try {
+                if (frame){
+                    var clientH;
+                    if (updown == 'shrink'){
+                        clientH = document.body.clientHeight - h;
+                    }else{
+                        clientH = document.body.clientHeight + h;
+                    }
+                    $(frame).height(clientH);
                 }
-                else
-                {
-                    clientH = document.body.clientHeight + h;
-                }
-                $(frame).height(clientH);
-            }
-        } catch(e) {}
+            } catch(e) {}
+        }
     }
-
 
     // Debugging
     function log($obj) {

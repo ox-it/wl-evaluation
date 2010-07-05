@@ -16,13 +16,19 @@ var evalTemplateLoaderEvents = (function($) {
 		var baseId = ""; // "blockPage::";
 
 		$('#saveBlockAction').click(function() {
-			//var list = $("#blockForm > div.itemRow").get();
-			var childIdList = [];
+			var childIdList = [],
+                reuseBlockText = $('.blockText input[type=radio][checked][value!=new1]').length > 0;
 			$('#blockForm input[name*=hidden-item-id]').each(function(){
 				childIdList.push($(this).val());
 			});
 			$("#ordered-child-ids").val(childIdList.toString());
-			evalTemplateData.postFCKform('#blockForm', 'item-text', 'modify_template', $('#saveBlockAction'));
+            if (reuseBlockText){
+			    evalTemplateData.postFCKform('#blockForm', false, 'modify_block', $('#saveBlockAction'));
+                return false;
+            }else{
+                evalTemplateData.postFCKform('#blockForm', 'item-text', 'modify_block', $('#saveBlockAction'));
+                return false;
+            }
 		});
 
 		function disableOrderButtons() {
@@ -73,27 +79,28 @@ var evalTemplateLoaderEvents = (function($) {
 		}
     },
 
-    bindDeleteIcons = function(){
-        $('a[rel=remove]').itemRemove({
+    bindDeleteIcons = function(row){
+        var scope = (typeof row === 'undefined') ? document : row.get();
+        $(scope).find('a[rel=remove]').itemRemove({
             ref:    'eval-templateitem',
-            id:     '$(this).attr("templateitemid")',
+            id:     'evalTemplateUtils.getTemplateItemId($(this))',
             text:   '$(this).parents("div.itemLine2").find("h4.itemText:visible").text()'
         });
-        $('a[rel=childRemove]').itemRemove({
+        $(scope).find('a[rel=childRemove]').itemRemove({
                     ref:    'eval-templateitem',
-                    id:        '$(this).attr("templateitemid")',
+                    id:        '$(this).parents("div.itemRowBlock").find("input[name=hidden-item-id]").val()',
                     itemType: 'blockChild',
-                    text:   '$(this).parents("div.itemRowBlock").find("span.text:visible").text()'
+                    text:   '$(this).parents("div.itemRowBlock").find("span.text").text()'
                 });
-        $('a[rel=childUngroup]').itemRemove({
+        $(scope).find('a[rel=childUngroup]').itemRemove({
                     ref:    'eval-templateitem/unblock',
                     id:    '$(this).parents("div.itemRowBlock").find("input[name=hidden-item-id]").val()',
                     itemType: 'blockChild',
                     text:   '$(this).parents("div.itemRowBlock").find("span.text:visible").text()'
                 });
-        $('a[rel=unblock]').itemRemove({
+        $(scope).find('a[rel=unblock]').itemRemove({
             ref:    'eval-templateitem',
-            id:        '$(this).attr("templateitemid")',
+            id:        'evalTemplateUtils.getTemplateItemId($(this))',
             itemType: 'block',
             text:   '$(this).parents("div.itemLine2").find("h4.itemText:visible").text()'
         });
@@ -124,6 +131,48 @@ var evalTemplateLoaderEvents = (function($) {
             changedRow.find('a[rel=facebox]').unbind("facebox");
             changedRow.find('a[rel=faceboxGrid]').unbind("faceboxGrid");
         }
+    },
+        /**
+         * this will bind these controls in the main item of a group: hide/show item && more/less item
+          */
+    bindGroupParentTextControls = function(row){
+        var scope = (typeof row === 'undefined') ? document : row.get();
+        $(scope).find('.blockExpandText').toggle(
+            function() {
+                if ($(this).parents('.itemRow').find('.itemLine3').is(':hidden')) {
+                    $(this).click();
+                    return false;
+                }
+                var text = evalTemplateUtils.messageLocator('modifytemplate.group.show');
+                $(this).parents('.itemRow').find('.itemLine3').slideToggle();
+                $(this).text(text);
+                // save closed state
+                evalTemplateUtils.closedGroup.add( $(this).parents(".itemRow").attr('name') );
+                return false;
+            },
+            function() {
+                var text = evalTemplateUtils.messageLocator('modifytemplate.group.hide');
+                $(this).parents('.itemRow').find('.itemLine3').slideToggle();
+                $(this).text(text);
+                // remove closed state
+                evalTemplateUtils.closedGroup.remove( $(this).parents(".itemRow").attr('name') );
+                return false;
+            });
+        $(scope).find('.more').bind('click', function() {
+            if ($(this).parents('.itemLine2').find('.itemText').eq(1).find('.blockExpandText').length === 0) {
+                $(this).parents('.itemLine2').find('.itemText').eq(1).find('.blockExpandText').remove();
+                $(this).parent().find('.blockExpandText').clone(true).insertAfter($(this).parents('.itemLine2').find('.itemText').eq(1).find('.less'));
+            }
+            $(this).parent().toggle();
+            $(this).parents('.itemLine2').find('.itemText').eq(1).toggle();
+            evalTemplateUtils.frameGrow(0);
+            return false;
+        });
+        $(scope).find('.less').bind('click', function() {
+            $(this).parent().toggle();
+            $(this).parents('.itemLine2').find('.itemText').eq(0).toggle();
+            return false;
+        });
     };
 
     return {
@@ -133,15 +182,13 @@ var evalTemplateLoaderEvents = (function($) {
             var siteId = $('#site-id').text();
             SakaiProject.fckeditor.initializeEditor("item-text", siteId);
             $.facebox.setHeader($(".portletBody .titleHeader"));
-            if ($('.act .submit').attr('name').search(/templateBBean.saveItemAction/) === -1) {
+            if ($('.act .submit').attr('name').search(/templateBBean.saveTemplateItemToGroupAction/) !== -1) {
+                //proper submit  skip validation - it is not important
+            } else if ($('.act .submit').attr('name').search(/templateBBean.saveItemAction/) === -1) {
                 $('.act .submit').bind('click', function() {
                     evalTemplateData.postFCKform('#item-form', 'item-text', 'modify_item', $(this));
+                    return false;
                 });
-            } else {
-                var button = $('<input type="submit" class="active" accesskey="s"/>');
-                button.attr('name', $('.act .submit').attr('name'))
-                        .val($('.act .submit').val());
-                $('.act .submit').replaceWith(button);
             }
         },
         //modify_block.html view
@@ -176,9 +223,34 @@ var evalTemplateLoaderEvents = (function($) {
                     $(document).trigger('close.facebox');
                 });
         },
+        //choose expert items view
+        choose_expert_category: function(){
+            $.facebox.setHeader($(".portletBody .titleHeader"));
+            $('a[rel*=facebox]').facebox();
+        },
+        preview_item: function(){
+            if ($('.blockItemGroup').length > 0){
+                evalsys.instrumentBlockItem();
+            }
+            if ($('.steppedItemGroup').length > 0){
+                evalsys.instrumentSteppedItem();
+            }
+            if ($('.mult-choice-ans').length > 0){
+                evalsys.instrumentMCMAItem();
+            }
+            if ($('.itemListEval').length > 0) {
+                evalsys.instrumentScaleItem();
+            }
+            if ($('.fullDisplayHorizontal').length > 0) {
+                evalsys.instrumentDisplayHorizontal();
+            }
+            $.facebox.setHeader($(".portletBody .titleHeader"));
+            $("div.JSevalComment").evalComment();   //Bind comment boxes toggle link action
+        },
         bindDeleteIcons : bindDeleteIcons,
         unBindDeleteIcons : unBindDeleteIcons,
         bindRowEditPreviewIcons : bindRowEditPreviewIcons,
-        unBindRowEditPreviewIcons : unBindRowEditPreviewIcons
+        unBindRowEditPreviewIcons : unBindRowEditPreviewIcons,
+        bindGroupParentTextControls : bindGroupParentTextControls
     };
 })($);

@@ -21,7 +21,6 @@ import java.util.List;
 import org.sakaiproject.evaluation.constant.EvalConstants;
 import org.sakaiproject.evaluation.logic.EvalAuthoringService;
 import org.sakaiproject.evaluation.logic.EvalCommonLogic;
-import org.sakaiproject.evaluation.logic.EvalEvaluationService;
 import org.sakaiproject.evaluation.logic.EvalSettings;
 import org.sakaiproject.evaluation.logic.model.EvalUser;
 import org.sakaiproject.evaluation.model.EvalItem;
@@ -88,11 +87,6 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
         this.commonLogic = commonLogic;
     }
 
-    private EvalEvaluationService evaluationService;
-    public void setEvaluationService(EvalEvaluationService evaluationService) {
-        this.evaluationService = evaluationService;
-    }
-
     private EvalAuthoringService authoringService;
     public void setAuthoringService(EvalAuthoringService authoringService) {
         this.authoringService = authoringService;
@@ -109,8 +103,7 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
         this.hierarchyNodeSelectorRenderer = hierarchyNodeSelectorRenderer;
     }
 
-
-    /* (non-Javadoc)
+	/* (non-Javadoc)
      * @see uk.org.ponder.rsf.view.ComponentProducer#fillComponents(uk.org.ponder.rsf.components.UIContainer, uk.org.ponder.rsf.viewstate.ViewParameters, uk.org.ponder.rsf.view.ComponentChecker)
      */
     public void fillComponents(UIContainer tofill, ViewParameters viewparams, ComponentChecker checker) {
@@ -118,53 +111,7 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
         // local variables used in the render logic
         String currentUserId = commonLogic.getCurrentUserId();
         boolean userAdmin = commonLogic.isUserAdmin(currentUserId);
-        boolean createTemplate = authoringService.canCreateTemplate(currentUserId);
-        boolean beginEvaluation = evaluationService.canBeginEvaluation(currentUserId);
-
-
-        /*
-         * top links here
-         */
-        UIInternalLink.make(tofill, "summary-link", 
-                UIMessage.make("summary.page.title"), 
-                new SimpleViewParameters(SummaryProducer.VIEW_ID));
-
-        if (userAdmin) {
-        	UIInternalLink.make(tofill, "administrate-link", 
-        			UIMessage.make("administrate.page.title"),
-        			new SimpleViewParameters(AdministrateProducer.VIEW_ID));
-        }
-
-        // only show "My Evaluations", "My Templates", "My Items", "My Scales" and "My Email Templates" links if enabled
-        boolean showMyToplinks = ((Boolean)settings.get(EvalSettings.ENABLE_MY_TOPLINKS)).booleanValue();
-        if(showMyToplinks) {
-        	if (createTemplate) {
-        		UIInternalLink.make(tofill, "control-templates-link",
-        				UIMessage.make("controltemplates.page.title"), 
-        				new SimpleViewParameters(ControlTemplatesProducer.VIEW_ID));
-        		if (!((Boolean)settings.get(EvalSettings.DISABLE_ITEM_BANK))) {
-        			UIInternalLink.make(tofill, "control-items-link",
-        					UIMessage.make("controlitems.page.title"), 
-        					new SimpleViewParameters(ControlItemsProducer.VIEW_ID));
-        		}
-        	} else {
-        		throw new SecurityException("User attempted to access " + 
-        				VIEW_ID + " when they are not allowed");
-        	}
-
-        	if (beginEvaluation) {
-        		UIInternalLink.make(tofill, "control-evaluations-link",
-        				UIMessage.make("controlevaluations.page.title"),
-        				new SimpleViewParameters(ControlEvaluationsProducer.VIEW_ID));
-        	}
-
-        	if (userAdmin) {
-        		UIInternalLink.make(tofill, "control-scales-link",
-        				UIMessage.make("controlscales.page.title"),
-        				new SimpleViewParameters(ControlScalesProducer.VIEW_ID));
-        	}
-        }
-
+		
         // create the form to allow submission of this item
         UIForm form = UIForm.make(tofill, "item-form");
 
@@ -559,33 +506,41 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
             if (showHierarchyOptions  && ! isGroupable && ! isGrouped ) {
                 hierarchyNodeSelectorRenderer.renderHierarchyNodeSelector(form, "hierarchyNodeSelector:", templateItemOTP + "hierarchyNodeId", null);
             }
-
+        
             /*
+             * UMD Specific
              * If the system setting (admin setting) for "EvalSettings.ITEM_USE_RESULTS_SHARING" is set as true then all
-             * items default to "Public" and users can select Public or Private.
-             * If it is set to false then it is forced to Private
+             * items default to "Administrative" and users can select Administrative or Student.
+             * If it is set to false then it is forced to Administrative
              */
             Boolean useResultSharing = (Boolean) settings.get(EvalSettings.ITEM_USE_RESULTS_SHARING);
-            if (useResultSharing && ! isGroupable && ! isGrouped ) {
-                // Means show both options (public & private)
+            if (useResultSharing) {	// && ! isGroupable && ! isGrouped ) {
+                // Means show both options (Administrative & Student)
                 UIBranchContainer showItemResultSharing = UIBranchContainer.make(form, "showItemResultSharing:");
                 UIMessage.make(showItemResultSharing, "item-results-sharing-header", "modifyitem.results.sharing.header");
-                UIMessage.make(showItemResultSharing, "item-results-sharing-PU", "general.public");
-                UIMessage.make(showItemResultSharing, "item-results-sharing-PR", "general.private");
+                UIMessage.make(showItemResultSharing, "item-results-sharing-AD", "modifyitem.results.sharing.admin");
+                UIMessage.make(showItemResultSharing, "item-results-sharing-ST", "modifyitem.results.sharing.student");
                 // Radio Buttons for "Result Sharing"
-                String[] resultSharingList = { "general.public", "general.private" };
+                String[] resultSharingList = { "modifyitem.results.sharing.admin", "modifyitem.results.sharing.student" };
                 UISelect radios = UISelect.make(showItemResultSharing, "item_results_sharing", EvalToolConstants.ITEM_RESULTS_SHARING_VALUES,
                         resultSharingList, templateItemOTP + "resultsSharing", null);
 
                 String selectID = radios.getFullID();
-                UISelectChoice.make(showItemResultSharing, "item_results_sharing_PU", selectID, 0);
-                UISelectChoice.make(showItemResultSharing, "item_results_sharing_PR", selectID, 1);
+                UISelectChoice.make(showItemResultSharing, "item_results_sharing_AD", selectID, 0);
+                UISelectChoice.make(showItemResultSharing, "item_results_sharing_ST", selectID, 1);
             } else {
                 // false so all questions are private by default (set the binding)
                 form.parameters.add( 
                         new UIELBinding(templateItemOTP + "resultsSharing",
-                                EvalToolConstants.ITEM_RESULTS_SHARING_VALUES[0]) );
+                                EvalConstants.SHARING_PUBLIC));
             }
+            
+            // hierarchy node selector control
+ //           Boolean showHierarchyOptions = (Boolean) settings.get(EvalSettings.DISPLAY_HIERARCHY_OPTIONS);
+ //           if (showHierarchyOptions) {
+ //               hierarchyNodeSelectorRenderer.renderHierarchyNodeSelector(form, "hierarchyNodeSelector:", templateItemOTP + "hierarchyNodeId", null);
+ //           }
+ 
         }
 
 
@@ -640,9 +595,20 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
         if (ivp.templateId == null) {
             // go to the Items view if we are not working with a template currently
             result.resultingView = new SimpleViewParameters(ControlItemsProducer.VIEW_ID);
-        } else {
-            // go to the template items view if we are working with a template
-            result.resultingView = new TemplateViewParameters(ModifyTemplateItemsProducer.VIEW_ID, ivp.templateId);
+        }else{        
+	        if(actionReturn != null){
+	        	try{
+	        		Long itemId = Long.parseLong(actionReturn.toString());
+	        		result.resultingView = new TemplateViewParameters(ModifyTemplateItemsProducer.VIEW_ID, ivp.templateId, itemId);
+	        	}catch(NumberFormatException e){
+	        		if ("success".equals(actionReturn.toString())){
+		        		result.resultingView = new TemplateViewParameters(ModifyTemplateItemsProducer.VIEW_ID, ivp.templateId);
+	        		}else{
+		        		//This is an unexpected return string, possibly an error. So return an error view:
+		        		result.resultingView = new SimpleViewParameters(MessagesProducer.VIEW_ID);
+	        		}
+	        	}
+	        }
         }
     }
 
@@ -650,7 +616,6 @@ public class ModifyItemProducer implements ViewComponentProducer, ViewParamsRepo
      * @see uk.org.ponder.rsf.viewstate.ViewParamsReporter#getViewParameters()
      */
     public ViewParameters getViewParameters() {
-        return new ItemViewParameters();
+        return new ItemViewParameters();      
     }
-
 }

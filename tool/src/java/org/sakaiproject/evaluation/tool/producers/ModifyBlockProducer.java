@@ -37,6 +37,8 @@ import uk.org.ponder.rsf.components.UISelectChoice;
 import uk.org.ponder.rsf.components.UISelectLabel;
 import uk.org.ponder.rsf.components.UIVerbatim;
 import uk.org.ponder.rsf.components.decorators.UILabelTargetDecorator;
+import uk.org.ponder.rsf.flow.ARIResult;
+import uk.org.ponder.rsf.flow.ActionResultInterceptor;
 import uk.org.ponder.rsf.flow.jsfnav.NavigationCase;
 import uk.org.ponder.rsf.flow.jsfnav.NavigationCaseReporter;
 import uk.org.ponder.rsf.view.ComponentChecker;
@@ -51,7 +53,7 @@ import uk.org.ponder.rsf.viewstate.ViewParamsReporter;
  * @author Rui Feng (fengr@vt.edu)
  * @author "Rick Moyer" <rmoyer@umd.edu>
  */
-public class ModifyBlockProducer implements ViewComponentProducer, ViewParamsReporter,
+public class ModifyBlockProducer implements ViewComponentProducer, ViewParamsReporter, ActionResultInterceptor,
 NavigationCaseReporter {
 
     public static final String VIEW_ID = "modify_block";
@@ -85,6 +87,7 @@ NavigationCaseReporter {
      */
     public void fillComponents(UIContainer tofill, ViewParameters viewparams,
             ComponentChecker checker) {
+
         BlockIdsParameters evParameters = (BlockIdsParameters) viewparams;
         Long templateId = evParameters.templateId;
 
@@ -371,9 +374,6 @@ NavigationCaseReporter {
 
         i.add(new NavigationCase(PreviewItemProducer.VIEW_ID, new SimpleViewParameters(
                 PreviewItemProducer.VIEW_ID)));
-        i.add(new NavigationCase("success", new TemplateViewParameters(
-                ModifyTemplateItemsProducer.VIEW_ID, null)));
-
         return i;
     }
 
@@ -382,6 +382,21 @@ NavigationCaseReporter {
      */
     public ViewParameters getViewParameters() {
         return new BlockIdsParameters();
+    }
+
+    public void interceptActionResult(ARIResult result, ViewParameters incoming, Object actionReturn) {
+    	BlockIdsParameters ivp = (BlockIdsParameters) incoming;
+        if(actionReturn != null){
+        	try{
+        		Long itemId = Long.parseLong(actionReturn.toString());
+        		result.resultingView = new TemplateViewParameters(ModifyTemplateItemsProducer.VIEW_ID, ivp.templateId, itemId);
+        	}catch(NumberFormatException e){
+        		//action return is not an id, so give JavaScript the producer to go to
+        		if ("success".equals(actionReturn)){
+            		result.resultingView = new TemplateViewParameters(ModifyTemplateItemsProducer.VIEW_ID, ivp.templateId);
+        		}
+       		}
+        }
     }
 
 }

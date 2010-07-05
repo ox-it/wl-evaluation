@@ -136,6 +136,7 @@ public class PreloadDataImpl {
 
             saveConfig(EvalSettings.ENABLE_SUMMARY_SITES_BOX, false);
             saveConfig(EvalSettings.ENABLE_EVAL_CATEGORIES, false);
+            saveConfig(EvalSettings.ENABLE_EVAL_TERM_IDS, false);
             saveConfig(EvalSettings.ENABLE_EVAL_RESPONSE_REMOVAL, false);
             saveConfig(EvalSettings.ITEM_USE_COURSE_CATEGORY_ONLY, false);
             saveConfig(EvalSettings.EVAL_USE_DATE_TIME, false);
@@ -145,6 +146,8 @@ public class PreloadDataImpl {
             saveConfig(EvalSettings.EVAL_MIN_TIME_DIFF_BETWEEN_START_DUE, 8);
             saveConfig(EvalSettings.ENABLE_EVAL_EARLY_CLOSE, true);
             saveConfig(EvalSettings.ENABLE_EVAL_REOPEN, true);
+            saveConfig(EvalSettings.ENABLE_MY_TOPLINKS, true);
+            saveConfig(EvalSettings.ENABLE_ADMINISTRATING_BOX, true);
 
             // REPORTING
             saveConfig(EvalSettings.ENABLE_CSV_REPORT_EXPORT, true);
@@ -161,6 +164,7 @@ public class PreloadDataImpl {
             saveConfig(EvalSettings.ENABLE_ITEM_COMMENTS, true);
             saveConfig(EvalSettings.DISABLE_ITEM_BANK, false);
             saveConfig(EvalSettings.DISABLE_QUESTION_BLOCKS, false);
+            saveConfig(EvalSettings.ENABLE_FILTER_ASSIGNABLE_GROUPS, false);
 
             // Default email settings
             saveConfig(EvalSettings.SINGLE_EMAIL_REMINDER_DAYS, 0);
@@ -171,6 +175,7 @@ public class PreloadDataImpl {
             saveConfig(EvalSettings.ENABLE_SINGLE_EMAIL_PER_STUDENT, false);
             saveConfig(EvalSettings.DEFAULT_EMAIL_REMINDER_FREQUENCY, 0);
             saveConfig(EvalSettings.EVALUATION_TIME_TO_WAIT_SECS, 300);
+            saveConfig(EvalSettings.ALLOW_EVALSPECIFIC_TOGGLE_EMAIL_NOTIFICATION, false);
 
             // Default batch performance metrics settings
             saveConfig(EvalSettings.LOG_PROGRESS_EVERY, 0);
