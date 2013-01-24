@@ -480,55 +480,45 @@ public class EvalExternalLogicImpl implements EvalExternalLogic {
             throw new IllegalArgumentException("evalGroupId cannot be null");
         }
 
-        EvalGroup c = null;
+        EvalGroup group;
+        try {
+            String title;
+            String type;
 
-        if (c == null) {
-            // check Sakai
-            try {
-                // try to get the site object based on the entity reference (which is the evalGroupId)
-                // first we try to go straight to the siteService which is fastest
-                if (evalGroupId.contains("/group/")) {
-                    Group group = siteService.findGroup(evalGroupId);
-                    c = new EvalGroup( evalGroupId, group.getTitle(), 
-                            getContextType(SAKAI_GROUP_TYPE) );
-                } else if (evalGroupId.startsWith("/site/")) {
-                    String siteId = evalGroupId.substring(6);
-                    try {
-                        Site site = siteService.getSite(siteId);
-                        c = new EvalGroup( evalGroupId, site.getTitle(), 
-                                getContextType(SAKAI_SITE_TYPE) );
-                    } catch (IdUnusedException e) {
-                        c = null;
-                    }
+            // try to get the site object based on the entity reference (which is the evalGroupId)
+            // first we try to go straight to the siteService which is faster
+            if (evalGroupId.contains("/group/")) {
+                Group test = siteService.findGroup(evalGroupId);
+                title = test.getTitle();
+                type = SAKAI_GROUP_TYPE;
+            } else if (evalGroupId.startsWith("/site/") && siteService.siteExists(evalGroupId.substring(6))) {
+                Site site = siteService.getSite(evalGroupId.substring(6));
+                title = site.getTitle();
+                type = SAKAI_SITE_TYPE;
+            } else {
+                // next try getting from entity system
+                Object entity = entityBroker.fetchEntity(evalGroupId);
+
+                if (entity instanceof Site) {
+                    title = ((Site) entity).getTitle();
+                    type = SAKAI_GROUP_TYPE;
+                } else if (entity instanceof Group) {
+                    title = ((Group) entity).getTitle();
+                    type = SAKAI_GROUP_TYPE;
+                } else {
+                    throw new IllegalArgumentException("EvalGroupId is expected to be either a siteId or a groupId" + evalGroupId);
                 }
-                if (c == null) {
-                    // next try getting from entity system
-                    Object entity = entityBroker.fetchEntity(evalGroupId);
-                    if (entity instanceof Site) {
-                        Site site = (Site) entity;
-                        c = new EvalGroup( evalGroupId, site.getTitle(), 
-                                getContextType(SAKAI_SITE_TYPE) );
-                    } else if (entity instanceof Group) {
-                        Group group = (Group) entity;
-                        c = new EvalGroup( evalGroupId, group.getTitle(), 
-                                getContextType(SAKAI_GROUP_TYPE) );
-                    }
-                }
-            } catch (Exception e) {
-                // invalid site reference
-                log.debug("Could not get sakai site from evalGroupId:" + evalGroupId, e);
-                c = null;
             }
-        }
 
-        if (c == null) {
-            log.error("Could not get group from evalGroupId:" + evalGroupId);
+            group = new EvalGroup(evalGroupId, title, getContextType(type));
+
+        } catch (Exception e) {
+            log.error("Could not get group from evalGroupId '" + evalGroupId + "'", e);
             // create a fake group placeholder as an error notice
-            c = new EvalGroup( evalGroupId, "** INVALID: "+evalGroupId+" **", 
-                    EvalConstants.GROUP_TYPE_INVALID );
+            group = new EvalGroup(evalGroupId, "** INVALID: " + evalGroupId + " **", EvalConstants.GROUP_TYPE_INVALID);
         }
 
-        return c;
+        return group;
     }
 
     /* (non-Javadoc)
