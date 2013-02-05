@@ -102,6 +102,8 @@ import org.sakaiproject.util.ResourceLoader;
  */
 public class EvalExternalLogicImpl implements EvalExternalLogic {
 
+    public static final String GROUP_PREFIX = "/group/";
+    public static final String SITE_PREFIX = "/site/";
     private static Log log = LogFactory.getLog(EvalExternalLogicImpl.class);
 
     private static final String SAKAI_SITE_TYPE = SiteService.SITE_SUBTYPE;
@@ -480,55 +482,44 @@ public class EvalExternalLogicImpl implements EvalExternalLogic {
             throw new IllegalArgumentException("evalGroupId cannot be null");
         }
 
-        EvalGroup c = null;
-
-        if (c == null) {
-            // check Sakai
-            try {
-                // try to get the site object based on the entity reference (which is the evalGroupId)
-                // first we try to go straight to the siteService which is fastest
-                if (evalGroupId.contains("/group/")) {
-                    Group group = siteService.findGroup(evalGroupId);
-                    c = new EvalGroup( evalGroupId, group.getTitle(), 
-                            getContextType(SAKAI_GROUP_TYPE) );
-                } else if (evalGroupId.startsWith("/site/")) {
-                    String siteId = evalGroupId.substring(6);
-                    try {
-                        Site site = siteService.getSite(siteId);
-                        c = new EvalGroup( evalGroupId, site.getTitle(), 
-                                getContextType(SAKAI_SITE_TYPE) );
-                    } catch (IdUnusedException e) {
-                        c = null;
-                    }
+        String groupTitle = null;
+        String groupType = null;
+        try {
+            // try to get the site object based on the entity reference (which is the evalGroupId)
+            // first we try to go straight to the siteService which is fastest
+            if (evalGroupId.contains(GROUP_PREFIX)) {
+                groupTitle = siteService.findGroup(evalGroupId).getTitle();
+                groupType = EvalConstants.GROUP_TYPE_GROUP;
+            } else if (evalGroupId.startsWith(SITE_PREFIX)) {
+                try {
+                    String siteId = evalGroupId.substring(SITE_PREFIX.length());
+                    groupTitle = siteService.getSite(siteId).getTitle();
+                    groupType = EvalConstants.GROUP_TYPE_SITE;
+                } catch (IdUnusedException e) {
+                    log.warn("Exception caught while trying to get site", e);
                 }
-                if (c == null) {
-                    // next try getting from entity system
-                    Object entity = entityBroker.fetchEntity(evalGroupId);
-                    if (entity instanceof Site) {
-                        Site site = (Site) entity;
-                        c = new EvalGroup( evalGroupId, site.getTitle(), 
-                                getContextType(SAKAI_SITE_TYPE) );
-                    } else if (entity instanceof Group) {
-                        Group group = (Group) entity;
-                        c = new EvalGroup( evalGroupId, group.getTitle(), 
-                                getContextType(SAKAI_GROUP_TYPE) );
-                    }
-                }
-            } catch (Exception e) {
-                // invalid site reference
-                log.debug("Could not get sakai site from evalGroupId:" + evalGroupId, e);
-                c = null;
             }
+
+            // next try getting from entity system
+            if (groupTitle == null) {
+                Object entity = entityBroker.fetchEntity(evalGroupId);
+                if (entity instanceof Site) {
+                    groupTitle = ((Site) entity).getTitle();
+                    groupType = EvalConstants.GROUP_TYPE_SITE;
+                } else if (entity instanceof Group) {
+                    groupTitle = ((Group) entity).getTitle();
+                    groupType = EvalConstants.GROUP_TYPE_GROUP;
+                } else {
+                    throw new IllegalArgumentException("Invalid group id");
+                }
+            }
+        } catch (Exception e) {
+            log.error("Could not get group from evalGroupId '" + evalGroupId + "'", e);
+            groupTitle = "** INVALID: " + evalGroupId + " **";
+            groupType = EvalConstants.GROUP_TYPE_INVALID;
         }
 
-        if (c == null) {
-            log.error("Could not get group from evalGroupId:" + evalGroupId);
-            // create a fake group placeholder as an error notice
-            c = new EvalGroup( evalGroupId, "** INVALID: "+evalGroupId+" **", 
-                    EvalConstants.GROUP_TYPE_INVALID );
-        }
-
-        return c;
+        return new EvalGroup(evalGroupId, groupTitle, groupType);
     }
 
     /* (non-Javadoc)
